@@ -1,0 +1,45 @@
+version: '3.2'
+services:
+  db:
+    image: postgres
+    container_name: landscape-postgres
+    environment:
+      - POSTGRES_USER=admin
+      - POSTGRES_PASSWORD=admin
+      - POSTGRES_DB=landscape_db
+#      - POSTGRES_LOGGING=true
+#      - PGDATA=/var/lib/postgresql/data/pgdata
+    ports:
+      - '5432:5432'
+    volumes:
+      - postgres_data:/var/lib/postgresql
+    networks:
+      - landscape-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U admin -d landscape_db" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    #user: "1000:1000"
+  bot:
+    build: .
+    container_name: landscape_design_bot
+    networks:
+      - landscape-network
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: "postgresql://admin:admin@db:5432/landscape_db"
+    depends_on:
+      db:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    restart: unless-stopped
+    command: >
+      sh -c "sleep 5 && python main.py"
+volumes:
+  postgres_data:
+networks:
+  landscape-network:
+    driver: bridge
